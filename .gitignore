@@ -19,3 +19,9 @@ packages/
 .vs
 *local.settings.json
 * - Zip Deploy.pubxml
+
+# idea folder
+.idea/
+
+# macOS-specific
+.DS_Store
