@@ -20,8 +20,6 @@ namespace Microsoft.CloudMine.Core.Collectors.IO
 
         void AddOutputPathPart(string key, string value);
 
-        // void SetOutputPathPrefix(string outputPathPrefix);
-
         Task FinalizeAsync();
 
         Task WriteRecordAsync(JObject record, RecordContext context);

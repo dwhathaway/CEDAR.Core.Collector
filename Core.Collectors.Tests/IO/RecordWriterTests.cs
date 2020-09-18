@@ -1,11 +1,10 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 
-using Microsoft.CloudMine.Core.Collectors.IO;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Text.RegularExpressions;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 
-namespace Microsoft.CloudMine.Core.Collectors.IO.Tests
+namespace Microsoft.CloudMine.Core.Collectors.Tests.IO
 {
     [TestClass]
     public class RecordWriterTests

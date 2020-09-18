@@ -35,17 +35,11 @@ namespace Microsoft.CloudMine.Core.Collectors.IO
 
         private bool initialized;
 
-        // private StreamWriter currentWriter;
-
-        // private string currentOutputSuffix;
-
         private int currentFileIndex;
 
         private int currentRecordIndex;
 
-        // private string currentRecordType;
-
-        private Dictionary<string, StreamWriter> currentWriteStreams { get; set; }
+        private Dictionary<string, (string fileName, StreamWriter stream)> currentWriteStreams { get; set; }
 
         protected ITelemetryClient TelemetryClient { get; private set; }
 
@@ -112,7 +106,7 @@ namespace Microsoft.CloudMine.Core.Collectors.IO
 
         protected abstract Task InitializeInternalAsync();
 
-        protected abstract Task<StreamWriter> NewStreamWriterAsync(string recordType, int fileIndex = 0, string uniqueId = "");
+        protected abstract Task<StreamWriter> NewStreamWriterAsync(string filePath);
 
         protected abstract Task NotifyCurrentOutputAsync(string fileName);
 
@@ -134,29 +128,12 @@ namespace Microsoft.CloudMine.Core.Collectors.IO
             OutputPathParts.Add(key, value);
         }
 
-        // public void SetOutputPathPrefix(string outputPathPrefix)
-        // {
-        //     // Do nothing
-        // }
-
-        //protected string GetOutputPathFull(string recordType, int fileIndex = 0)
-        //{
-        //    string fileIndexPart = (fileIndex == 0 ? "" : $"_{fileIndex}");
-
-        //    string recortTypePart = (string.IsNullOrWhiteSpace(recordType) ? "" : $"{recordType}/");
-
-        //    var dateTimeUtc = this.functionContext.FunctionStartDate;
-
-        //    var outputPath = $"{this.outputPathPrefix}/{recortTypePart}{dateTimeUtc:yyyy/MM/dd/HH.mm.ss}_{this.identifier}_{this.functionContext.SessionId}{fileIndexPart}.json";
-
-        //    return outputPath;
-        //}
-
         /// <summary>
         /// Replaces all the output file path placeholders with runtime values and does validation base on the configuration input
         /// </summary>
         /// <param name="recordType">The type of the record being written</param>
         /// <param name="fileIndex">Index of the current file</param>
+        /// <param name="uniqueId">The unique ID to use for the file name (e.g. RecordSha, CommitId, etc.)</param>
         /// <returns></returns>
         protected string BuildOutputPath(string recordType, int fileIndex = 0, string uniqueId = "")
         {
@@ -240,7 +217,7 @@ namespace Microsoft.CloudMine.Core.Collectors.IO
             // this.currentOutputSuffix = outputSuffix;
 
             // New up the Dictionary that will hold each of the stream writers
-            currentWriteStreams = new Dictionary<string, StreamWriter>();
+            currentWriteStreams = new Dictionary<string, (string fileName, StreamWriter stream)>();
 
             this.initialized = true;
         }
@@ -256,23 +233,19 @@ namespace Microsoft.CloudMine.Core.Collectors.IO
             // If the dictionary contains a stream for the record type, grab it and dispose of it, then remove it
             if(currentWriteStreams.ContainsKey(recordType))
             {
-                var stream = currentWriteStreams[recordType];
+                var writerRecord = currentWriteStreams[recordType];
 
-                // this.currentWriter.Dispose();
-                await stream.DisposeAsync();
+                await writerRecord.stream.DisposeAsync();
+
+                await this.NotifyCurrentOutputAsync(writerRecord.fileName).ConfigureAwait(false);
 
                 currentWriteStreams.Remove(recordType);
             }
 
-            var newStream = await this.NewStreamWriterAsync(recordType, fileIndex, uniqueId).ConfigureAwait(false);
+            string filePath = this.BuildOutputPath(recordType, fileIndex, uniqueId);
+            var newStream = await this.NewStreamWriterAsync(filePath).ConfigureAwait(false);
 
-            // ToDo: Need to figure out what to do here - not sure if this is really needed?
-            // await this.NotifyCurrentOutputAsync().ConfigureAwait(false);
-
-            currentWriteStreams.Add(recordType, newStream);
-
-            // this.currentOutputSuffix = recordType;
-            //currentRecordType = recordType;
+            currentWriteStreams.Add(recordType, (filePath, newStream));
         }
 
         public async Task WriteRecordAsync(JObject record, RecordContext recordContext)
@@ -330,7 +303,7 @@ namespace Microsoft.CloudMine.Core.Collectors.IO
             {
                 Dictionary<string, string> properties = new Dictionary<string, string>()
                 {
-                    { "RecordType", recordContext.RecordType },
+                    { "RecordType", recordType },
                     { "RecordMetadata", record.SelectToken("$.Metadata").ToString(Formatting.None) },
                     { "RecordPrefix", content.Substring(0, 1024) },
                 };
@@ -339,26 +312,28 @@ namespace Microsoft.CloudMine.Core.Collectors.IO
                 return;
             }
 
+            string uniqueId = string.Empty;
+
             if (this.Mode == RecordWriterMode.Single)
             {
                 // For single record writer modes, we don't need to open a stream, we'll just write a file
                 JObject recordObject = JObject.Parse(content);
 
                 // Get the Sha for the record and pass it to generate a new unique file
-                string uniqueId = recordObject["Metadata"]["RecordSha"].Value<string>();
+                uniqueId = recordObject["Metadata"]["RecordSha"].Value<string>();
 
                 // Always regenerate the file path and file when in single writer mode
-                // protected string BuildOutputPath(string recordType, int fileIndex = 0, string uniqueId = "")
-                await CreateBlobAsync(recordType, uniqueId, recordObject.ToString(Formatting.None));
+                string blobPath = BuildOutputPath(recordType, 0, uniqueId);
+                await CreateBlobAsync(blobPath, recordObject.ToString(Formatting.None));
             }
             else
             {
                 // Get the current record writer
-                var writer = currentWriteStreams[recordType];
+                var writerRecord = currentWriteStreams[recordType];
 
                 // this.SizeInBytes = this.currentWriter.BaseStream.Position;
 
-                var sizeInBytes = writer.BaseStream.Position;
+                var sizeInBytes = writerRecord.stream.BaseStream.Position;
 
                 // Check if the current file needs to be rolled over.
                 if (this.SizeInBytes > this.fileSizeLimit || (this.currentRecordIndex > 0 && this.currentRecordIndex > this.recordCountLimit))
@@ -368,24 +343,38 @@ namespace Microsoft.CloudMine.Core.Collectors.IO
                     await this.NewOutputAsync(recordType, this.currentFileIndex).ConfigureAwait(false);
 
                     // Now that the stream has been re-created, grab it again
-                    writer = currentWriteStreams[recordType];
+                    writerRecord = currentWriteStreams[recordType];
 
                     // Reset the record index in the case that that's being used to determine when to roll over a file
                     currentRecordIndex = 0;
                 }
 
-                await writer.WriteLineAsync(content).ConfigureAwait(false);
+                // Append a ',' character to the end of each line for the corresponding record writer modes
+                if (Mode == RecordWriterMode.CommaDelimited || Mode == RecordWriterMode.CommaDelimitedArray)
+                {
+                    content += ",";
+                }
+
+                await writerRecord.stream.WriteLineAsync(content).ConfigureAwait(false);
                 currentRecordIndex++;
 
                 this.RegisterRecord(recordContext.RecordType);
             }
         }
 
-        private async Task CreateBlobAsync(string recordType, string uniqueId, string blobContent)
+        private async Task CreateBlobAsync(string blobPath, string blobContent)
         {
-            var stream = await NewStreamWriterAsync(recordType, 0, uniqueId);
+            var stream = await this.NewStreamWriterAsync(blobPath);
 
-            await stream.WriteAsync(blobContent);
+            try
+            {
+                await stream.WriteAsync(blobContent);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                throw;
+            }
 
             stream.Close();
         }
@@ -412,16 +401,11 @@ namespace Microsoft.CloudMine.Core.Collectors.IO
             }
 
             // Close and dispose of each open stream
-            foreach (var dict in currentWriteStreams)
+            foreach (var writerRecord in currentWriteStreams)
             {
-                var stream = dict.Value;
+                await writerRecord.Value.stream.DisposeAsync();
 
-                await stream.FlushAsync();
-                stream.Close();
-                await stream.DisposeAsync();
-
-                // ToDo: Need to figure out what to do here - not sure if this is really needed?
-                // await this.NotifyCurrentOutputAsync().ConfigureAwait(false);
+                await this.NotifyCurrentOutputAsync(writerRecord.Value.fileName).ConfigureAwait(false);
             }
 
             this.initialized = false;
@@ -438,7 +422,7 @@ namespace Microsoft.CloudMine.Core.Collectors.IO
             // Dispose all of the streams
             foreach (var streamPair in currentWriteStreams)
             {
-                streamPair.Value.Dispose();
+                streamPair.Value.stream.Dispose();
             }
         }
 

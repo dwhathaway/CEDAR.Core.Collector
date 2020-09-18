@@ -68,10 +68,9 @@ namespace Microsoft.CloudMine.Core.Collectors.IO
             return Task.CompletedTask;
         }
 
-        protected override Task<StreamWriter> NewStreamWriterAsync(string recordType, int fileIndex = 0, string uniqueId = "")
+        protected override Task<StreamWriter> NewStreamWriterAsync(string fileName)
         {
             // ToDo: make sure this is working properly after refactoring
-            string fileName = BuildOutputPath(recordType, fileIndex, uniqueId);
             this.currentLocalPath = Path.Combine(this.localRoot, fileName);
             Directory.CreateDirectory(Path.GetDirectoryName(this.currentLocalPath));
 

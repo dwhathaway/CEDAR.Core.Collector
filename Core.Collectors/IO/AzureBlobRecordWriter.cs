@@ -68,9 +68,9 @@ namespace Microsoft.CloudMine.Core.Collectors.IO
             this.outContainer = await AzureHelpers.GetStorageContainerAsync(this.blobRoot, this.storageConnectionEnvironmentVariable).ConfigureAwait(false);
         }
 
-        protected override async Task<StreamWriter> NewStreamWriterAsync(string recordType, int fileIndex = 0, string uniqueId = "")
+        protected override async Task<StreamWriter> NewStreamWriterAsync(string filePath)
         {
-            var outputBlob = this.outContainer.GetBlockBlobReference(this.BuildOutputPath(recordType, fileIndex, uniqueId));
+            var outputBlob = this.outContainer.GetBlockBlobReference(filePath);
             CloudBlobStream cloudBlobStream = await outputBlob.OpenWriteAsync().ConfigureAwait(false);
             return new StreamWriter(cloudBlobStream, Encoding.UTF8);
         }
