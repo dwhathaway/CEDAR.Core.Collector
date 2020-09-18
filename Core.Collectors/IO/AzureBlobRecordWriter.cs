@@ -21,7 +21,7 @@ namespace Microsoft.CloudMine.Core.Collectors.IO
         private readonly string outputQueueName;
         private readonly string storageConnectionEnvironmentVariable;
         private readonly string notificationQueueConnectionEnvironmentVariable;
-        private readonly bool notifyUpstream;
+        private readonly bool notifyDownstream;
 
         private CloudBlobContainer outContainer;
         private CloudQueue queue;
@@ -36,8 +36,8 @@ namespace Microsoft.CloudMine.Core.Collectors.IO
                                      string notificationQueueConnectionEnvironmentVariable = "AzureWebJobsStorage",
                                      RecordWriterMode mode = RecordWriterMode.LineDelimited,
                                      string outputPathLayout = "",
-                                     bool notifyUpstream = true)
-            : this(blobRoot, outputQueueName, identifier, telemetryClient, functionContext, contextWriter, outputPathPrefix: null, storageConnectionEnvironmentVariable, notificationQueueConnectionEnvironmentVariable, mode, outputPathLayout: outputPathLayout, notifyUpstream: notifyUpstream)
+                                     bool notifyDownstream = true)
+            : this(blobRoot, outputQueueName, identifier, telemetryClient, functionContext, contextWriter, outputPathPrefix: null, storageConnectionEnvironmentVariable, notificationQueueConnectionEnvironmentVariable, mode, outputPathLayout: outputPathLayout, notifyDownstream: notifyDownstream)
         {
         }
 
@@ -52,14 +52,14 @@ namespace Microsoft.CloudMine.Core.Collectors.IO
                                      string notificationQueueConnectionEnvironmentVariable = "AzureWebJobsStorage",
                                      RecordWriterMode mode = RecordWriterMode.LineDelimited,
                                      string outputPathLayout = "",
-                                     bool notifyUpstream = true)
+                                     bool notifyDownstream = true)
             : base(identifier, telemetryClient, functionContext, contextWriter, RecordSizeLimit, FileSizeLimit, RecordCountLimit, source: RecordWriterSource.AzureBlob, mode: mode, outputPathLayout: outputPathLayout)
         {
             this.blobRoot = blobRoot;
             this.outputQueueName = outputQueueName;
             this.storageConnectionEnvironmentVariable = storageConnectionEnvironmentVariable;
             this.notificationQueueConnectionEnvironmentVariable = notificationQueueConnectionEnvironmentVariable;
-            this.notifyUpstream = notifyUpstream;
+            this.notifyDownstream = notifyDownstream;
         }
 
         protected override async Task InitializeInternalAsync()
@@ -77,7 +77,7 @@ namespace Microsoft.CloudMine.Core.Collectors.IO
 
         protected override async Task NotifyCurrentOutputAsync(string fileName)
         {
-            if(notifyUpstream)
+            if(this.notifyDownstream)
             {
                 CloudBlob blob = this.outContainer.GetBlockBlobReference(fileName);
 

@@ -32,7 +32,7 @@ namespace Microsoft.CloudMine.Core.Collectors.Config
                                                               T functionContext,
                                                               ContextWriter<T> contextWriter,
                                                               AdlsClient adlsClient,
-                                                              bool notifyUpstream = true) where T : FunctionContext
+                                                              bool notifyDownstream = true) where T : FunctionContext
         {
             if (this.initialized)
             {
@@ -57,6 +57,12 @@ namespace Microsoft.CloudMine.Core.Collectors.Config
                 {
                     // Reassign the value of the recordWriterMode to whatever was specified in Settings.json
                     Enum.TryParse<RecordWriterMode>(recordWriterModeToken.ToString(), out recordWriterMode);
+                }
+
+                // It's not recommended that RecordWriterMode.Single and NotifyDownstream are used together.  Write a warning.
+                if (notifyDownstream && recordWriterMode == RecordWriterMode.Single)
+                {
+                    telemetryClient.LogWarning($"Unsupported combination of RecordWriterMode ({recordWriterMode}) and NotifyDownstream ({notifyDownstream.ToString()}) configured.");
                 }
 
                 var outputPathLayout = recordWriterToken.SelectToken("OutputPathLayout").Value<string>();
@@ -85,7 +91,7 @@ namespace Microsoft.CloudMine.Core.Collectors.Config
 
                         string rootContainer = rootContainerToken.Value<string>();
                         string outputQueueName = outputQueueNameToken.Value<string>();
-                        IRecordWriter blobRecordWriter = new AzureBlobRecordWriter<T>(rootContainer, outputQueueName, identifier, telemetryClient, functionContext, contextWriter, mode: recordWriterMode, outputPathLayout: outputPathLayout, notifyUpstream: notifyUpstream);
+                        IRecordWriter blobRecordWriter = new AzureBlobRecordWriter<T>(rootContainer, outputQueueName, identifier, telemetryClient, functionContext, contextWriter, mode: recordWriterMode, outputPathLayout: outputPathLayout, notifyDownstream: notifyDownstream);
                         this.recordWriters.Add(blobRecordWriter);
                         break;
                     default:

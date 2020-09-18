@@ -31,7 +31,7 @@ namespace Microsoft.CloudMine.Core.Collectors.IO
 
         private string currentLocalPath;
 
-        private readonly bool notifyUpstream;
+        private readonly bool notifyDownstream;
 
         // public AdlsBulkRecordWriter(AdlsClient adlsClient,
         //                             string identifier,
@@ -51,13 +51,13 @@ namespace Microsoft.CloudMine.Core.Collectors.IO
                                     ContextWriter<T> contextWriter,
                                     string root,
                                     string outputPathLayout = "",
-                                    bool notifyUpstream = true)
+                                    bool notifyDownstream = true)
             : base(identifier, telemetryClient, functionContext, contextWriter, RecordSizeLimit, FileSizeLimit, RecordCountLimit, source: RecordWriterSource.AzureDataLake, outputPathLayout: outputPathLayout)
         {
             this.adlsClient = adlsClient;
             this.adlsRoot = root;
             this.uniqueId = functionContext.SessionId;
-            this.notifyUpstream = notifyUpstream;
+            this.notifyDownstream = notifyDownstream;
         }
 
         protected override Task InitializeInternalAsync()
@@ -81,7 +81,7 @@ namespace Microsoft.CloudMine.Core.Collectors.IO
 
         protected override Task NotifyCurrentOutputAsync(string fileName)
         {
-            if (notifyUpstream)
+            if (notifyDownstream)
             {
                 // Assume that upload will take at most 10 minutes.
                 string finalOutputPath = Path.Combine(this.localRoot, fileName);
