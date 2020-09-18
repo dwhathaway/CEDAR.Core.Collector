@@ -14,6 +14,12 @@ namespace Microsoft.CloudMine.Core.Collectors.Tests.IO
 
         public IEnumerable<string> OutputPaths => throw new NotImplementedException();
 
+        public RecordWriterMode Mode => throw new NotImplementedException();
+
+        public string OutputPathLayout => throw new NotImplementedException();
+
+        public Dictionary<string, string> OutputPathParts => throw new NotImplementedException();
+
         public InMemoryRecordWriter()
         {
             this.records = new List<Tuple<JObject, RecordContext>>();
@@ -40,7 +46,7 @@ namespace Microsoft.CloudMine.Core.Collectors.Tests.IO
             return Task.CompletedTask;
         }
 
-        public Task NewOutputAsync(string outputSuffix, int fileIndex = 0)
+        public Task NewOutputAsync(string outputSuffix, int fileIndex = 0, string uniqueId = "")
         {
             throw new NotImplementedException();
         }
@@ -54,6 +60,11 @@ namespace Microsoft.CloudMine.Core.Collectors.Tests.IO
         {
             this.records.Add(Tuple.Create(record, context));
             return Task.CompletedTask;
+        }
+
+        public void AddOutputPathPart(string key, string value)
+        {
+            throw new NotImplementedException();
         }
     }
 }

@@ -60,13 +60,14 @@ namespace Microsoft.CloudMine.Core.Collectors.Collector
             return this.ProcessAsync(collectionNode, maxPageCount: long.MaxValue);
         }
 
-        public void SetOutputPathPrefix(string outputPathPrefix)
-        {
-            foreach (IRecordWriter recordWriter in this.recordWriters)
-            {
-                recordWriter.SetOutputPathPrefix(outputPathPrefix);
-            }
-        }
+        // ToDo: make sure removing this isn't a problem
+        // public void SetOutputPathPrefix(string outputPathPrefix)
+        // {
+        //     foreach (IRecordWriter recordWriter in this.recordWriters)
+        //     {
+        //         recordWriter.SetOutputPathPrefix(outputPathPrefix);
+        //     }
+        // }
 
         public async Task<bool> ProcessAsync(T collectionNode, long maxPageCount)
         {
@@ -102,7 +103,7 @@ namespace Microsoft.CloudMine.Core.Collectors.Collector
                     foreach (CollectionNode childCollectionNode in children)
                     {
                         T childNodeClone = (T)childCollectionNode.Clone();
-                        // Add the context carried over the parent node. 
+                        // Add the context carried over the parent node.
                         foreach (KeyValuePair<string, JToken> parentMetadataItem in collectionNode.AdditionalMetadata)
                         {
                             string parentMetadataName = parentMetadataItem.Key;
@@ -246,7 +247,7 @@ namespace Microsoft.CloudMine.Core.Collectors.Collector
                     childNodeClone.AdditionalMetadata.Add(newMetadataItem.Key, newMetadataItem.Value);
                 }
 
-                // Add the context carried over the parent node. 
+                // Add the context carried over the parent node.
                 foreach (KeyValuePair<string, JToken> parentMetadataItem in collectionNode.AdditionalMetadata)
                 {
                     string parentMetadataName = parentMetadataItem.Key;
@@ -267,7 +268,7 @@ namespace Microsoft.CloudMine.Core.Collectors.Collector
                         };
                         this.telemetryClient.TrackEvent("IgnoredParentMetadata", properties);
                     }
-                    else 
+                    else
                     {
                         childNodeClone.AdditionalMetadata.Add(parentMetadataName, parentMetadataValue);
                     }

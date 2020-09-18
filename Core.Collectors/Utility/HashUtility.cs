@@ -11,7 +11,7 @@ namespace Microsoft.CloudMine.Core.Collectors.Utility
         public static string ComputeSha256(string input)
         {
             using SHA256 sha256 = SHA256.Create();
-            // ComputeHash - returns byte array  
+            // ComputeHash - returns byte array
             byte[] bytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(input));
 
             return ConvertByteArrayToString(bytes);
@@ -20,7 +20,7 @@ namespace Microsoft.CloudMine.Core.Collectors.Utility
         public static string ComputeSha512(string input)
         {
             using SHA512 sha512 = SHA512.Create();
-            // ComputeHash - returns byte array  
+            // ComputeHash - returns byte array
             byte[] bytes = sha512.ComputeHash(Encoding.UTF8.GetBytes(input));
 
             return ConvertByteArrayToString(bytes);
@@ -28,7 +28,7 @@ namespace Microsoft.CloudMine.Core.Collectors.Utility
 
         private static string ConvertByteArrayToString(byte[] bytes)
         {
-            // Convert byte array to a string   
+            // Convert byte array to a string
             StringBuilder builder = new StringBuilder();
             for (int i = 0; i < bytes.Length; i++)
             {

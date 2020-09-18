@@ -18,7 +18,7 @@ namespace Microsoft.CloudMine.Core.Collectors.Config
         private List<IRecordWriter> recordWriters;
         private readonly ITelemetryClient telemetryClient;
         private bool initialized;
-        
+
         public StorageManager(JArray recordWritersArray, ITelemetryClient telemetryClient)
         {
             this.recordWritersArray = recordWritersArray;
@@ -30,7 +30,8 @@ namespace Microsoft.CloudMine.Core.Collectors.Config
         public List<IRecordWriter> InitializeRecordWriters<T>(string identifier,
                                                               T functionContext,
                                                               ContextWriter<T> contextWriter,
-                                                              AdlsClient adlsClient) where T : FunctionContext
+                                                              AdlsClient adlsClient,
+                                                              bool notifyUpstream = true) where T : FunctionContext
         {
             if (this.initialized)
             {
@@ -42,10 +43,22 @@ namespace Microsoft.CloudMine.Core.Collectors.Config
             foreach (JToken recordWriterToken in recordWritersArray)
             {
                 JToken recordWriterTypeToken = recordWriterToken.SelectToken("Type");
+
                 if (recordWriterTypeToken == null)
                 {
                     throw new FatalTerminalException("Settings.json must provide a Type for storage locations.");
                 }
+
+                JToken recordWriterModeToken = recordWriterToken.SelectToken("Mode");
+                RecordWriterMode recordWriterMode = RecordWriterMode.LineDelimited;
+
+                if(recordWriterModeToken != null)
+                {
+                    // Reassign the value of the recordWriterMode to whatever was specified in Settings.json
+                    Enum.TryParse<RecordWriterMode>(recordWriterModeToken.ToString(), out recordWriterMode);
+                }
+
+                var outputPathLayout = recordWriterToken.SelectToken("OutputPathLayout").Value<string>();
 
                 string recordWriterType = recordWriterTypeToken.Value<string>();
                 switch (recordWriterType)
@@ -58,7 +71,7 @@ namespace Microsoft.CloudMine.Core.Collectors.Config
                         }
 
                         string rootFolder = rootFolderToken.Value<string>();
-                        IRecordWriter adlsRecordWriter = new AdlsBulkRecordWriter<T>(adlsClient, identifier, telemetryClient, functionContext, contextWriter, root: rootFolder);
+                        IRecordWriter adlsRecordWriter = new AdlsBulkRecordWriter<T>(adlsClient, identifier, telemetryClient, functionContext, contextWriter, root: rootFolder, outputPathLayout: outputPathLayout);
                         this.recordWriters.Add(adlsRecordWriter);
                         break;
                     case "AzureBlob":
@@ -71,7 +84,7 @@ namespace Microsoft.CloudMine.Core.Collectors.Config
 
                         string rootContainer = rootContainerToken.Value<string>();
                         string outputQueueName = outputQueueNameToken.Value<string>();
-                        IRecordWriter blobRecordWriter = new AzureBlobRecordWriter<T>(rootContainer, outputQueueName, identifier, telemetryClient, functionContext, contextWriter);
+                        IRecordWriter blobRecordWriter = new AzureBlobRecordWriter<T>(rootContainer, outputQueueName, identifier, telemetryClient, functionContext, contextWriter, mode: recordWriterMode, outputPathLayout: outputPathLayout, notifyUpstream: notifyUpstream);
                         this.recordWriters.Add(blobRecordWriter);
                         break;
                     default:
@@ -110,7 +123,7 @@ namespace Microsoft.CloudMine.Core.Collectors.Config
                 catch (Exception exception)
                 {
                     this.telemetryClient.TrackException(exception, $"Failed to dispose of RecordWriter : {recordWriter.GetType()}");
-                }   
+                }
             }
         }
     }

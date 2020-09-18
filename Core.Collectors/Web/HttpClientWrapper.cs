@@ -37,7 +37,8 @@ namespace Microsoft.CloudMine.Core.Collectors.Web
 
         public Task<HttpResponseMessage> PostAsync(string requestUrl, string requestBody, IAuthentication authentication, ProductInfoHeaderValue productInfoHeaderValue)
         {
-            return this.MakeRequestAsync(requestUrl, HttpMethod.Post, requestBody, authentication, productInfoHeaderValue, eTag: string.Empty);
+            // return this.MakeRequestAsync(requestUrl, HttpMethod.Post, requestBody, authentication, productInfoHeaderValue, eTag: string.Empty);
+            return null;
         }
 
         public Task<HttpResponseMessage> GetAsync(string requestUrl, IAuthentication authentication, ProductInfoHeaderValue productInfoHeaderValue, string eTag)
